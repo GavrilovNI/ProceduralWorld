@@ -1,19 +1,24 @@
+#nullable enable
 using System;
 using UnityEngine;
 
-[Serializable]
-public struct GenerationSettings
+[CreateAssetMenu(fileName = "GenerationSettings", menuName = "ScriptableObjects/GenerationSettings", order = 1)]
+public class GenerationSettings : ScriptableObject
 {
-    public const int MaxVerticesInMesh = 65535;
+    public const int MaxVerticesInMesh = 255 * 255;
     public const int MaxVerticesInCube = 12;
-    public const int MaxChunkSize = 65535 / MaxVerticesInCube / MaxVerticesInCube / MaxVerticesInCube;
+    //public static readonly int MaxChunkSize = Mathf.FloorToInt(Mathf.Pow(1f * MaxVerticesInMesh / MaxVerticesInCube, 1f / 3));
+    public const int MaxChunkSize = 17;
 
-    [SerializeField] private int _seed;
-    [SerializeField, Range(1, MaxChunkSize)] private int _chunkSize;
-    [SerializeField, Min(0)] private float _amplitude;
-    [SerializeField, Min(0)] private float _frequency;
-    [SerializeField, Range(0, 1)] private float _cutMinValue;
-    [SerializeField, Min(0)] private float _cubeSize;
+    [SerializeField] private int _seed = 0;
+    [SerializeField, Range(1, MaxChunkSize)] private int _chunkSize = MaxChunkSize;
+    [SerializeField, Min(0)] private float _amplitude = 1;
+    [SerializeField, Min(0)] private float _frequency = Mathf.PI;
+    [SerializeField, Min(0)] private float _cubeSize = 1;
+    [SerializeField, Range(0, 1)] private float _surfaceBorder = 0.5f;
+    [SerializeField] private AnimationCurve _surfaceLevelByHeight = AnimationCurve.Linear(0, 0, 1, 1);
+    [SerializeField] private float _minHeight = 5;
+    [SerializeField, Min(0)] private float _surfaceHeight = 5;
 
     public Vector3 SeedOffset
     {
@@ -53,6 +58,17 @@ public struct GenerationSettings
                 _amplitude = value;
         }
     }
+    public float SurfaceBorder
+    {
+        get => _surfaceBorder;
+        set
+        {
+            if(value < 0)
+                throw new ArgumentOutOfRangeException(nameof(value), $"{nameof(SurfaceBorder)} must be positive.");
+            else
+                _surfaceBorder = value;
+        }
+    }
     public float Frequency
     {
         get => _frequency;
@@ -62,17 +78,6 @@ public struct GenerationSettings
                 throw new ArgumentOutOfRangeException(nameof(value), $"{nameof(Frequency)} must be positive.");
             else
                 _frequency = value;
-        }
-    }
-    public float CutMinValue
-    {
-        get => _cutMinValue;
-        set
-        {
-            if(value < 0 || value > 1)
-                throw new ArgumentOutOfRangeException(nameof(value), $"{nameof(CutMinValue)} must be in range [0,1].");
-            else
-                _cutMinValue = value;
         }
     }
     public float CubeSize
@@ -87,24 +92,15 @@ public struct GenerationSettings
         }
     }
 
-    public GenerationSettings(int seed = 0, int chunkSize = MaxChunkSize, float amplitude = 1, float frequency = 0.1f, float cutMinValue = 0.2f, float cubeSize = 1)
+    public float GetSurfaceLevelMupltiplier(Vector3 point)
     {
-        if(chunkSize < 1 || chunkSize > MaxChunkSize)
-            throw new ArgumentOutOfRangeException(nameof(chunkSize), $"{nameof(chunkSize)} must be in range [1,{MaxChunkSize}].");
-        if(frequency < 0)
-            throw new ArgumentOutOfRangeException(nameof(frequency), $"{nameof(frequency)} must be positive.");
-        if(amplitude < 0)
-            throw new ArgumentOutOfRangeException(nameof(amplitude), $"{nameof(amplitude)} must be positive.");
-        if(cutMinValue < 0 || cutMinValue > 1)
-            throw new ArgumentOutOfRangeException(nameof(cutMinValue), $"{nameof(cutMinValue)} must be in range [0,1].");
-        if(cubeSize < 0)
-            throw new ArgumentOutOfRangeException(nameof(cubeSize), $"{nameof(cubeSize)} must be positive.");
+        float height = point.y;
+        return _surfaceLevelByHeight.Evaluate(Mathf.Clamp01((height - _minHeight) / _surfaceHeight));
+    }
 
-        _seed = seed;
-        _chunkSize = chunkSize;
-        _amplitude = amplitude;
-        _frequency = frequency;
-        _cutMinValue = cutMinValue;
-        _cubeSize = cubeSize;
+    public GenerationSettings()
+    {
     }
 }
+#nullable disable
+

@@ -1,12 +1,9 @@
+#nullable enable
 using UnityEngine;
 
 [RequireComponent(typeof(MeshFilter))]
 public class Chunk : MonoBehaviour
 {
-    public const int MaxVerticesInMesh = 65535;
-    public const int MaxVerticesInCube = 12;
-    public const int MaxChunkSize = 65535 / MaxVerticesInCube / MaxVerticesInCube / MaxVerticesInCube;
-
     private MeshFilter _meshFilter;
     private Vector3Int _chunkPosition;
 
@@ -27,8 +24,10 @@ public class Chunk : MonoBehaviour
             Awake();
 #endif
 
-        MeshData data = MeshGenerator.GenerateChunk(_chunkPosition, settings);
-        _meshFilter.sharedMesh = data.Build();
+        var chunkBuilder = MeshGenerator.GenerateChunk(_chunkPosition, settings);
+        _meshFilter.sharedMesh = chunkBuilder.Build();
     }
 
 }
+#nullable disable
+

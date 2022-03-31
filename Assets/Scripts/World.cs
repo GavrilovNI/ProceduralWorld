@@ -1,5 +1,7 @@
+#nullable enable
 using System.Collections.Generic;
 using UnityEngine;
+using UnityExtensions;
 
 public class World : MonoBehaviour
 {
@@ -22,7 +24,7 @@ public class World : MonoBehaviour
         }
     }
     public bool HasChunk(Vector3Int position) => GetChunk(position) != null;
-    private Chunk CreateChunk(Vector3Int position)
+    protected Chunk CreateChunk(Vector3Int position)
     {
         if(HasChunk(position))
             throw new System.InvalidOperationException($"Chunk {position} already exists.");
@@ -59,3 +61,5 @@ public class World : MonoBehaviour
 #endif
     }
 }
+#nullable disable
+

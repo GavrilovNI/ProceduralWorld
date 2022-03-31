@@ -1,3 +1,4 @@
+#nullable enable
 using UnityEngine;
 
 public static class PerlinNoise
@@ -72,6 +73,15 @@ public static class PerlinNoise
         return a.x * b.x + a.y * b.y + a.z * b.z;
     }
 
+    public static float Get(Vector3 point, float min, float max)
+    {
+        float value = Get(point);
+        return Mathf.Lerp(min, max, (value + 1) / 2);
+    }
+
+    public static float Get01(Vector3 point) => Get(point, 0, 1);
+
+    //returns value in range [-1,1]
     public static float Get(Vector3 point)
     {
         int flooredPointX0 = Mathf.FloorToInt(point.x);
@@ -133,12 +143,17 @@ public static class PerlinNoise
         float smoothDistanceY = SmoothDistance(distanceY0);
         float smoothDistanceZ = SmoothDistance(distanceZ0);
 
-        return Mathf.Lerp(Mathf.Lerp(Mathf.Lerp(value000, value100, smoothDistanceX),
-                                     Mathf.Lerp(value010, value110, smoothDistanceX),
-                                     smoothDistanceY),
-                          Mathf.Lerp(Mathf.Lerp(value001, value101, smoothDistanceX),
-                                     Mathf.Lerp(value011, value111, smoothDistanceX),
-                                     smoothDistanceY),
-                          smoothDistanceZ);
+
+        float notClampedResult = Mathf.Lerp(Mathf.Lerp(Mathf.Lerp(value000, value100, smoothDistanceX),
+                                                      Mathf.Lerp(value010, value110, smoothDistanceX),
+                                                      smoothDistanceY),
+                                           Mathf.Lerp(Mathf.Lerp(value001, value101, smoothDistanceX),
+                                                      Mathf.Lerp(value011, value111, smoothDistanceX),
+                                                      smoothDistanceY),
+                                           smoothDistanceZ);
+
+        return Mathf.Clamp(notClampedResult, -1, 1);
     }
 }
+#nullable disable
+

@@ -1,3 +1,4 @@
+#nullable enable
 using UnityEngine;
 
 [RequireComponent(typeof(MeshFilter))]
@@ -15,3 +16,5 @@ public class TestChunk : Chunk, ITest
         GetComponent<MeshFilter>().sharedMesh = null;
     }
 }
+#nullable disable
+

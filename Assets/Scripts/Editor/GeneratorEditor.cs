@@ -1,3 +1,4 @@
+#nullable enable
 using UnityEngine;
 using UnityEditor;
 
@@ -7,23 +8,40 @@ public abstract class GeneratorEditor : Editor
 
     public override void OnInspectorGUI()
     {
-        bool valuesChanged = DrawDefaultInspector();
+        if(DrawDefaultInspector())
+            MarkDirty();
 
-        ITest generatable = target as ITest;
-        if(generatable == null)
+        if(target is not ITest)
             return;
 
         AutoUpdate = EditorGUILayout.Toggle("Auto Update", AutoUpdate);
 
-        if(valuesChanged && AutoUpdate || GUILayout.Button("Test"))
+        if(GUILayout.Button("Test"))
+            Test();
+
+        if(GUILayout.Button("Reset"))
+            ResetTest();
+    }
+
+    protected void Test()
+    {
+        if(target is ITest generatable)
         {
             generatable.Reset();
             generatable.Test();
         }
+    }
 
-        if(GUILayout.Button("Reset"))
-        {
+    protected void ResetTest()
+    {
+        if(target is ITest generatable)
             generatable.Reset();
-        }
+    }
+
+    protected void MarkDirty()
+    {
+        if(AutoUpdate)
+            Test();
     }
 }
+#nullable disable

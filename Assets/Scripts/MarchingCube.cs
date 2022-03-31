@@ -1,45 +1,94 @@
+#nullable enable
 using UnityEngine;
 using System.Linq;
+using System.Collections.Generic;
+using System;
+
+public class CreatedMatchingCubeInfo
+{
+    private Dictionary<int, int> _edgeToVertexIndexes;
+
+    public CreatedMatchingCubeInfo(Dictionary<int, int> edgeToVertexIndexes)
+    {
+        _edgeToVertexIndexes = edgeToVertexIndexes;
+    }
+
+    public bool HasEdgeIndex(int edgeIndex) => _edgeToVertexIndexes.ContainsKey(edgeIndex);
+    public int GetVertexIndex(int edgeIndex)
+    {
+        if(_edgeToVertexIndexes.TryGetValue(edgeIndex, out int vertexIndex))
+            return vertexIndex;
+        return -1;
+    }
+}
 
 public static class MarchingCube
 {
-    private static readonly int[] _edgeTable = new int[256]
+    private static readonly Dictionary<Direction, int[]> _edgesByDirection = new()
     {
-        0x0  , 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
-        0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
-        0x190, 0x99 , 0x393, 0x29a, 0x596, 0x49f, 0x795, 0x69c,
-        0x99c, 0x895, 0xb9f, 0xa96, 0xd9a, 0xc93, 0xf99, 0xe90,
-        0x230, 0x339, 0x33 , 0x13a, 0x636, 0x73f, 0x435, 0x53c,
-        0xa3c, 0xb35, 0x83f, 0x936, 0xe3a, 0xf33, 0xc39, 0xd30,
-        0x3a0, 0x2a9, 0x1a3, 0xaa , 0x7a6, 0x6af, 0x5a5, 0x4ac,
-        0xbac, 0xaa5, 0x9af, 0x8a6, 0xfaa, 0xea3, 0xda9, 0xca0,
-        0x460, 0x569, 0x663, 0x76a, 0x66 , 0x16f, 0x265, 0x36c,
-        0xc6c, 0xd65, 0xe6f, 0xf66, 0x86a, 0x963, 0xa69, 0xb60,
-        0x5f0, 0x4f9, 0x7f3, 0x6fa, 0x1f6, 0xff , 0x3f5, 0x2fc,
-        0xdfc, 0xcf5, 0xfff, 0xef6, 0x9fa, 0x8f3, 0xbf9, 0xaf0,
-        0x650, 0x759, 0x453, 0x55a, 0x256, 0x35f, 0x55 , 0x15c,
-        0xe5c, 0xf55, 0xc5f, 0xd56, 0xa5a, 0xb53, 0x859, 0x950,
-        0x7c0, 0x6c9, 0x5c3, 0x4ca, 0x3c6, 0x2cf, 0x1c5, 0xcc ,
-        0xfcc, 0xec5, 0xdcf, 0xcc6, 0xbca, 0xac3, 0x9c9, 0x8c0,
-        0x8c0, 0x9c9, 0xac3, 0xbca, 0xcc6, 0xdcf, 0xec5, 0xfcc,
-        0xcc , 0x1c5, 0x2cf, 0x3c6, 0x4ca, 0x5c3, 0x6c9, 0x7c0,
-        0x950, 0x859, 0xb53, 0xa5a, 0xd56, 0xc5f, 0xf55, 0xe5c,
-        0x15c, 0x55 , 0x35f, 0x256, 0x55a, 0x453, 0x759, 0x650,
-        0xaf0, 0xbf9, 0x8f3, 0x9fa, 0xef6, 0xfff, 0xcf5, 0xdfc,
-        0x2fc, 0x3f5, 0xff , 0x1f6, 0x6fa, 0x7f3, 0x4f9, 0x5f0,
-        0xb60, 0xa69, 0x963, 0x86a, 0xf66, 0xe6f, 0xd65, 0xc6c,
-        0x36c, 0x265, 0x16f, 0x66 , 0x76a, 0x663, 0x569, 0x460,
-        0xca0, 0xda9, 0xea3, 0xfaa, 0x8a6, 0x9af, 0xaa5, 0xbac,
-        0x4ac, 0x5a5, 0x6af, 0x7a6, 0xaa , 0x1a3, 0x2a9, 0x3a0,
-        0xd30, 0xc39, 0xf33, 0xe3a, 0x936, 0x83f, 0xb35, 0xa3c,
-        0x53c, 0x435, 0x73f, 0x636, 0x13a, 0x33 , 0x339, 0x230,
-        0xe90, 0xf99, 0xc93, 0xd9a, 0xa96, 0xb9f, 0x895, 0x99c,
-        0x69c, 0x795, 0x49f, 0x596, 0x29a, 0x393, 0x99 , 0x190,
-        0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
-        0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0
-    };
+        { Direction.Right, new int[4] { 1, 5, 9, 10 } },
+        { Direction.Left, new int[4] { 3, 7, 8, 11 } },
+        { Direction.Up, new int[4] { 4, 5, 6, 7 } },
+        { Direction.Down, new int[4] { 0, 1, 2, 3 } },
+        { Direction.Back, new int[4] { 0, 4, 8, 9 } },
+        { Direction.Forward, new int[4] { 2, 6, 11, 10 } },
 
-    private static readonly int[][] _trianglesTable = new int[256][]
+        { Direction.DownBack, new int[1] { 0 } },
+        { Direction.DownRight, new int[1] { 1 } },
+        { Direction.DownForward, new int[1] { 2 } },
+        { Direction.DownLeft, new int[1] { 3 } },
+
+        { Direction.UpBack, new int[1] { 4 } },
+        { Direction.UpRight, new int[1] { 5 } },
+        { Direction.UpForward, new int[1] { 6 } },
+        { Direction.UpLeft, new int[1] { 7 } },
+
+        { Direction.BackLeft, new int[1] { 8 } },
+        { Direction.BackRight, new int[1] { 9 } },
+        { Direction.ForwardRight, new int[1] { 10 } },
+        { Direction.ForwardLeft, new int[1] { 11 } },
+
+    };
+    private static readonly Dictionary<(int, Direction), int> _commonEdges = new()
+    {
+        { (0, Direction.Down), 4 },
+        { (1, Direction.Down), 5 },
+        { (2, Direction.Down), 6 },
+        { (3, Direction.Down), 7 },
+        { (4, Direction.Up), 0 },
+        { (5, Direction.Up), 1 },
+        { (6, Direction.Up), 2 },
+        { (7, Direction.Up), 3 },
+        { (3, Direction.Left), 1 },
+        { (7, Direction.Left), 5 },
+        { (8, Direction.Left), 9 },
+        { (11, Direction.Left), 10 },
+        { (1, Direction.Right), 3 },
+        { (5, Direction.Right), 7 },
+        { (9, Direction.Right), 8 },
+        { (10, Direction.Right), 11 },
+        { (0, Direction.Back), 2 },
+        { (4, Direction.Back), 6 },
+        { (8, Direction.Back), 11 },
+        { (9, Direction.Back), 10 },
+        { (2, Direction.Forward), 0 },
+        { (6, Direction.Forward), 4 },
+        { (11, Direction.Forward), 8 },
+        { (10, Direction.Forward), 9 },
+        { (0, Direction.DownBack), 6 },
+        { (1, Direction.DownRight), 7 },
+        { (2, Direction.DownForward), 4 },
+        { (3, Direction.DownLeft), 5 },
+        { (4, Direction.UpBack), 2 },
+        { (5, Direction.UpRight), 3 },
+        { (6, Direction.UpForward), 0 },
+        { (7, Direction.UpLeft), 1 },
+        { (8, Direction.BackLeft), 10 },
+        { (9, Direction.BackRight), 11 },
+        { (10, Direction.ForwardRight), 8 },
+        { (11, Direction.ForwardLeft), 9 },
+    };
+    private static readonly int[][] _edgesByCubeIndex = new int[256][]
     {
         new int[]{},
         new int[]{0, 8, 3},
@@ -298,8 +347,7 @@ public static class MarchingCube
         new int[]{0, 3, 8},
         new int[]{}
     };
-
-    private static readonly Vector3[] _vertexes = new Vector3[8]
+    private static readonly Vector3[] _vertexOffset = new Vector3[8]
     {
         Vector3.zero,
         Vector3.right,
@@ -310,75 +358,94 @@ public static class MarchingCube
         Vector3.one,
         new Vector3(0, 1, 1)
     };
-
-    private static (int, int) GetEdge(int edgeIndex)
+    private static readonly (int, int)[] _edgePoints = new (int, int)[12]
     {
-        if(edgeIndex < 4)
-            return (edgeIndex, (edgeIndex + 1) & 3);
-        else if(edgeIndex < 8)
-            return (edgeIndex, 4 + ((edgeIndex - 3) & 3));
-        else
-            return (edgeIndex - 8, edgeIndex - 4);
-    }
+        (0, 1),
+        (1, 2),
+        (2, 3),
+        (3, 0),
+        (4, 5),
+        (5, 6),
+        (6, 7),
+        (7, 4),
+        (0, 4),
+        (1, 5),
+        (2, 6),
+        (3, 7),
+    };
 
-    public static int GetCubeIndex(bool[] vertexesInside)
+    public static int GetCubeIndex(float[] vertexesValues, float surfaceBorder)
     {
-        if(vertexesInside.Length != 8)
-            throw new System.ArgumentOutOfRangeException(nameof(vertexesInside), "Length must be = 8.");
+        if(vertexesValues.Length != 8)
+            throw new System.ArgumentOutOfRangeException(nameof(vertexesValues), "Length must be = 8.");
 
         int cubeIndex = 0;
         int pow2 = 1;
         for(int i = 0; i < 8; i++)
         {
-            if(vertexesInside[i])
+            if(vertexesValues[i] <= surfaceBorder)
                 cubeIndex |= pow2;
             pow2 *= 2;
         }
         return cubeIndex;
     }
 
-    public static int GetCubeIndex(float[] vertexesValues, float isoValue)
+    public static CreatedMatchingCubeInfo AddCubeToMesh(float[] surfaceLevels, float surfaceBorder, Vector3 position, float size, MeshData data, Dictionary<Direction, CreatedMatchingCubeInfo> neighbors)
     {
-        if(vertexesValues.Length != 8)
-            throw new System.ArgumentOutOfRangeException(nameof(vertexesValues), "Length must be = 8.");
-
-        return GetCubeIndex(vertexesValues.Select(v => v <= isoValue).ToArray());
-    }
-
-    public static void AddCubeToMesh(int cubeIndex, Vector3 position, float size, MeshData data)
-    {
-        if(size < 0)
-            throw new System.ArgumentOutOfRangeException(nameof(size), "Must be >= 0.");
-
-        int verticesCountBefore = data.Vertices.Count;
-        int[] triangles = _trianglesTable[cubeIndex];
-
-        for(int i = 0; i < triangles.Length; i++)
+        Dictionary<int, int> existingVertices = new();
+        foreach(var createdCube in neighbors)
         {
-            (int a, int b) = GetEdge(triangles[i]);
-            data.Vertices.Add(position + (_vertexes[a] + _vertexes[b]) / 2 * size);
-            data.TriangleIndexes.Add(verticesCountBefore + i);
+            Direction direction = createdCube.Key;
+            var cubeInfo = createdCube.Value;
+
+            if(_edgesByDirection.TryGetValue(direction, out int[] edgesByDirection) == false)
+                continue;
+
+            foreach(var edge in edgesByDirection)
+            {
+                if(existingVertices.ContainsKey(edge))
+                    continue;
+
+                var commonEdge = _commonEdges[(edge, direction)];
+                existingVertices.Add(edge, cubeInfo.GetVertexIndex(commonEdge));
+            }
         }
+
+        int cubeIndex = GetCubeIndex(surfaceLevels, surfaceBorder);
+        int[] edges = _edgesByCubeIndex[cubeIndex];
+
+        for(int i = 0; i < edges.Length; i++)
+        {
+            int edge = edges[i];
+            int vertexIndex;
+            if(existingVertices.TryGetValue(edge, out vertexIndex) == false)
+            {
+
+                (int a, int b) = _edgePoints[edges[i]];
+                Vector3 point = Vector3.Lerp(_vertexOffset[a], _vertexOffset[b], (surfaceBorder - surfaceLevels[a]) / (surfaceLevels[b] - surfaceLevels[a]));
+                vertexIndex = data.AddVertex(position + point * size);
+                existingVertices.Add(edge, vertexIndex);
+            }
+            data.AddTriangleIndex(vertexIndex);
+        }
+
+        return new CreatedMatchingCubeInfo(existingVertices);
     }
 
-    public static void AddCubeToMesh(bool[] vertexesInside, Vector3 position, float size, MeshData data) =>
-        AddCubeToMesh(GetCubeIndex(vertexesInside), position, size, data);
-
-    public static void AddCubeToMesh(float[] vertexesValues, float isoValue, Vector3 position, float size, MeshData data)
+    public static void AddCubeToMesh(float[] surfaceLevels, float surfaceBorder, Vector3 position, float size, MeshData data)
     {
-        if(size < 0)
-            throw new System.ArgumentOutOfRangeException(nameof(size), "Must be >= 0.");
+        int cubeIndex = GetCubeIndex(surfaceLevels, surfaceBorder);
+        int[] edges = _edgesByCubeIndex[cubeIndex];
 
-        int cubeIndex = GetCubeIndex(vertexesValues, isoValue);
-        int verticesCountBefore = data.Vertices.Count;
-        int[] triangles = _trianglesTable[cubeIndex];
-
-        for(int i = 0; i < triangles.Length; i++)
+        for(int i = 0; i < edges.Length; i++)
         {
-            (int a, int b) = GetEdge(triangles[i]);
-            Vector3 point = Vector3.Lerp(_vertexes[a], _vertexes[b], (isoValue - vertexesValues[a]) / (vertexesValues[b] - vertexesValues[a]));
-            data.Vertices.Add(position + point * size);
-            data.TriangleIndexes.Add(verticesCountBefore + i);
+            (int a, int b) = _edgePoints[edges[i]];
+            Vector3 edgePoint = Vector3.Lerp(_vertexOffset[a], _vertexOffset[b], (surfaceBorder - surfaceLevels[a]) / (surfaceLevels[b] - surfaceLevels[a]));
+            Vector3 vertex = position + edgePoint * size;
+            int vertexIndex = data.AddVertex(vertex);
+            data.AddTriangleIndex(vertexIndex);
         }
     }
 }
+#nullable disable
+

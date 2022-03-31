@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -7,3 +8,5 @@ using UnityEditor;
 public class TestChunkEditor : GeneratorEditor
 {
 }
+#nullable disable
+
