@@ -1,4 +1,5 @@
 #nullable enable
+#pragma warning disable CS8618
 using UnityEngine;
 
 [RequireComponent(typeof(MeshFilter))]
@@ -16,5 +17,6 @@ public class TestChunk : Chunk, ITest
         GetComponent<MeshFilter>().sharedMesh = null;
     }
 }
+#pragma warning restore CS8618
 #nullable disable
 

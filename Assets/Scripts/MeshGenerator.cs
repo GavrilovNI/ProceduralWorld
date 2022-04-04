@@ -1,6 +1,7 @@
 #nullable enable
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityExtensions;
 
 public static class MeshGenerator
 {
@@ -10,11 +11,12 @@ public static class MeshGenerator
         float amplitude = settings.Amplitude;
         float frequency = settings.Frequency;
         float surfaceBorder = settings.SurfaceBorder;
-        float cubeSize = settings.CubeSize;
+        float scale = settings.Scale;
+        Vector3 offset = settings.Offset;
         Vector3 seedOffset = settings.SeedOffset;
+        bool flat = settings.Flat;
 
-        Vector3 globalChunkPosition = chunkPosition * settings.ChunkSize;
-
+        Vector3 globalChunkPosition = chunkPosition.ToFloat() * settings.ChunkSize + offset;
         float[,,] surfaceLevels = new float[chunkSize + 1, chunkSize + 1, chunkSize + 1];
 
         for(int z = 0; z < chunkSize + 1; z++)
@@ -23,40 +25,15 @@ public static class MeshGenerator
             {
                 for(int x = 0; x < chunkSize + 1; x++)
                 {
-                    Vector3 blockPosition = globalChunkPosition + new Vector3(x, y, z);
-                    float surfaceLevel = PerlinNoise.Get01(blockPosition * frequency + seedOffset) * amplitude;
-                    surfaceLevel *= settings.GetSurfaceLevelMupltiplier(blockPosition);
+                    Vector3 blockPosition = new Vector3(x, y, z) + globalChunkPosition;
+                    float surfaceLevel = PerlinNoise.Get01(blockPosition * frequency + seedOffset);
+                    surfaceLevel = settings.TransformSurfaceLevel(blockPosition, surfaceLevel) * amplitude;
                     surfaceLevels[z, y, x] = surfaceLevel;
                 }
             }
         }
 
-        return MarchingCubesMeshGenerator.Create(surfaceLevels, surfaceBorder, cubeSize);
-
-        /*MeshData meshData = new();
-
-        for(int z = 0; z < chunkSize; z++)
-        {
-            for(int y = 0; y < chunkSize; y++)
-            {
-                for(int x = 0; x < chunkSize; x++)
-                {
-                    float[] currentSurfaceLevels = new float[8] {
-                        surfaceLevels[z, y, x],
-                        surfaceLevels[z, y, x + 1],
-                        surfaceLevels[z + 1, y, x + 1],
-                        surfaceLevels[z + 1, y, x],
-                        surfaceLevels[z, y + 1, x],
-                        surfaceLevels[z, y + 1, x + 1],
-                        surfaceLevels[z + 1, y + 1, x + 1],
-                        surfaceLevels[z + 1, y + 1, x]
-                    };
-                    MarchingCube.AddCubeToMesh(currentSurfaceLevels, surfaceBorder, new Vector3(x, y, z) * cubeSize, cubeSize, meshData);
-                }
-            }
-        }
-
-        return meshData;*/
+        return MarchingCubesMeshGenerator.Create(surfaceLevels, surfaceBorder, scale, flat);
     }
 }
 #nullable disable

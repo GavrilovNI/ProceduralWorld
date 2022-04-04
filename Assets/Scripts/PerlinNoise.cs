@@ -63,7 +63,7 @@ public static class PerlinNoise
 
     private const int _directionCountMinusOne = 15; // must be 2^x - 1
 
-    private static float SmoothDistance(float distance)
+    public static float SmoothDistance(float distance)
     {
         return distance * distance * distance * (distance * (distance * 6f - 15f) + 10f);
     }

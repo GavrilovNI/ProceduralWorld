@@ -1,4 +1,5 @@
 #nullable enable
+#pragma warning disable CS8618
 using System.Collections.Generic;
 using UnityEngine;
 using UnityExtensions;
@@ -9,7 +10,7 @@ public class World : MonoBehaviour
     [SerializeField] private GenerationSettings _generationSettings;
 
     private readonly Dictionary<Vector3Int, Chunk> _chunks = new();
-    private System.Random _random = new System.Random();
+    private System.Random _random = new();
 
     public Chunk? GetChunk(Vector3Int position)
     {
@@ -30,8 +31,8 @@ public class World : MonoBehaviour
             throw new System.InvalidOperationException($"Chunk {position} already exists.");
 
         Chunk chunk = GameObject.Instantiate(_chunkPrefab);
-        chunk.transform.position = (Vector3)position * _generationSettings.ChunkSize * _generationSettings.CubeSize;
         chunk.transform.SetParent(transform);
+        chunk.transform.localPosition = _generationSettings.ChunkSize * _generationSettings.Scale * (Vector3)position;
         chunk.name = $"{nameof(Chunk)} {position}";
         chunk.Initialize(position);
         _chunks[position] = chunk;
@@ -46,7 +47,7 @@ public class World : MonoBehaviour
 
     public void RemoveChunk(Vector3Int position)
     {
-        Chunk chunk = GetChunk(position);
+        Chunk? chunk = GetChunk(position);
         if(chunk == null)
             throw new System.InvalidOperationException($"Chunk {position} doesn'y exist.");
 
@@ -61,5 +62,6 @@ public class World : MonoBehaviour
 #endif
     }
 }
+#pragma warning restore CS8618
 #nullable disable
 

@@ -24,7 +24,6 @@ public class MeshData
 
     public void AddTriangle(int vertex1, int vertex2, int vertex3) => AddTriangle(new int[3] { vertex1, vertex2, vertex3 });
     public void AddTriangleIndex(int vertexIndex) => _triangleIndexes.Add(vertexIndex);
-
     public Mesh Build()
     {
         Mesh mesh = new Mesh();
@@ -35,5 +34,6 @@ public class MeshData
         return mesh;
     }
 }
+
 #nullable disable
 

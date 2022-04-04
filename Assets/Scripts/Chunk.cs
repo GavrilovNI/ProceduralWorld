@@ -1,4 +1,5 @@
 #nullable enable
+#pragma warning disable CS8618
 using UnityEngine;
 
 [RequireComponent(typeof(MeshFilter))]
@@ -29,5 +30,6 @@ public class Chunk : MonoBehaviour
     }
 
 }
+#pragma warning restore CS8618
 #nullable disable
 

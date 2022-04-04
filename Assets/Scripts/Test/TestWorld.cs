@@ -10,10 +10,13 @@ public class TestWorld : World, ITest
     {
         RemoveAllChunks();
 
+        System.DateTime startTime = System.DateTime.Now;
         _bounds.ForEach(x =>
         {
             GenerateChunk(x);
         });
+        System.DateTime endTime = System.DateTime.Now;
+        Debug.Log("Generating Time: " + (endTime - startTime));
     }
 
     public void Reset()

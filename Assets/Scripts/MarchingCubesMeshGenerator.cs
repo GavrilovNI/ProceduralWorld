@@ -5,9 +5,9 @@ using UnityExtensions;
 
 public class MarchingCubesMeshGenerator
 {
-    private float _cubeSize = 1;
-    private MeshData _meshData = new();
-    private Dictionary<Vector3Int, CreatedMatchingCubeInfo> _cubes = new();
+    private readonly float _cubeSize = 1;
+    private readonly MeshData _meshData = new();
+    private readonly Dictionary<Vector3Int, CreatedMatchingCubeInfo> _cubes = new();
 
     public MarchingCubesMeshGenerator(float cubeSize)
     {
@@ -18,16 +18,26 @@ public class MarchingCubesMeshGenerator
 
     public bool HasCube(Vector3Int position) => _cubes.ContainsKey(position);
 
-    private void CreateCube(float[] vertexesValues, float surfaceBorder, Vector3Int position, Dictionary<Direction, CreatedMatchingCubeInfo> neighbors)
+    public void CreateFlatCube(float[] surfaceLevels, float surfaceBorder, Vector3Int position)
     {
-        var cubeInfo = MarchingCube.AddCubeToMesh(vertexesValues, surfaceBorder, position.ToFloat() * _cubeSize, _cubeSize, _meshData, neighbors);
+        if(surfaceLevels.Length != 8)
+            throw new System.ArgumentException(nameof(surfaceLevels), "Length must be 8");
+        if(HasCube(position))
+            throw new System.InvalidOperationException($"Cube on position {position} already exists.");
+
+        var cubeInfo = MarchingCube.AddFlatCubeToMesh(_meshData, surfaceLevels, surfaceBorder, position.ToFloat() * _cubeSize, _cubeSize);
+        _cubes.Add(position, cubeInfo);
+    }
+    private void CreateSmoothCube(float[] surfaceLevels, float surfaceBorder, Vector3Int position, Dictionary<Direction, CreatedMatchingCubeInfo> neighbors)
+    {
+        var cubeInfo = MarchingCube.AddSmoothCubeToMesh(_meshData, surfaceLevels, surfaceBorder, position.ToFloat() * _cubeSize, _cubeSize, neighbors);
         _cubes.Add(position, cubeInfo);
     }
 
-    public void CreateCube(float[] vertexesValues, float surfaceBorder, Vector3Int position)
+    public void CreateSmoothCube(float[] surfaceLevels, float surfaceBorder, Vector3Int position)
     {
-        if(vertexesValues.Length != 8)
-            throw new System.ArgumentException(nameof(vertexesValues), "Length must be 8");
+        if(surfaceLevels.Length != 8)
+            throw new System.ArgumentException(nameof(surfaceLevels), "Length must be 8");
         if(HasCube(position))
             throw new System.InvalidOperationException($"Cube on position {position} already exists.");
 
@@ -59,10 +69,10 @@ public class MarchingCubesMeshGenerator
             if(_cubes.TryGetValue(position + direction.ToVector(), out var cube))
                 neighbors.Add(direction, cube);
         }
-        CreateCube(vertexesValues, surfaceBorder, position, neighbors);
+        CreateSmoothCube(surfaceLevels, surfaceBorder, position, neighbors);
     }
 
-    public static MarchingCubesMeshGenerator Create(float[,,] surfaceLevels, float surfaceBorder, float cubeSize)
+    public static MarchingCubesMeshGenerator Create(float[,,] surfaceLevels, float surfaceBorder, float cubeSize, bool flat)
     {
         int zLength = surfaceLevels.GetLength(0) - 1;
         int yLength = surfaceLevels.GetLength(1) - 1;
@@ -83,6 +93,26 @@ public class MarchingCubesMeshGenerator
                         surfaceLevels[position.z + 1, position.y + 1, position.x]
                     };
 
+        System.Action<float[], float, Vector3Int> generateCube;
+        if(flat)
+        {
+            generateCube = result.CreateFlatCube;
+        }
+        else
+        {
+            generateCube = (currentSurfaceLevels, surfaceBorder, position) =>
+            {
+                Dictionary<Direction, CreatedMatchingCubeInfo> neighbors = new();
+                if(position.x > 0)
+                    neighbors.Add(Direction.Left, result._cubes[position + Vector3Int.left]);
+                if(position.y > 0)
+                    neighbors.Add(Direction.Down, result._cubes[position + Vector3Int.down]);
+                if(position.z > 0)
+                    neighbors.Add(Direction.Back, result._cubes[position + Vector3Int.back]);
+                result.CreateSmoothCube(currentSurfaceLevels, surfaceBorder, position, neighbors);
+            };
+        }
+
         for(int z = 0; z < zLength; z++)
         {
             for(int y = 0; y < yLength; y++)
@@ -90,14 +120,8 @@ public class MarchingCubesMeshGenerator
                 for(int x = 0; x < xLength; x++)
                 {
                     Vector3Int position = new(x, y, z);
-                    Dictionary<Direction, CreatedMatchingCubeInfo> neighbors = new();
-                    if(x > 0)
-                        neighbors.Add(Direction.Left, result._cubes[position + Vector3Int.left]);
-                    if(y > 0)
-                        neighbors.Add(Direction.Down, result._cubes[position + Vector3Int.down]);
-                    if(z > 0)
-                        neighbors.Add(Direction.Back, result._cubes[position + Vector3Int.back]);
-                    result.CreateCube(GetSurfaceLevels(position), surfaceBorder, position, neighbors);
+                    var currentSurfaceLevels = GetSurfaceLevels(position);
+                    generateCube(currentSurfaceLevels, surfaceBorder, position);
                 }
             }
         }

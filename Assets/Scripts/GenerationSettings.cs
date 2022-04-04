@@ -6,19 +6,21 @@ using UnityEngine;
 public class GenerationSettings : ScriptableObject
 {
     public const int MaxVerticesInMesh = 255 * 255;
-    public const int MaxVerticesInCube = 12;
-    //public static readonly int MaxChunkSize = Mathf.FloorToInt(Mathf.Pow(1f * MaxVerticesInMesh / MaxVerticesInCube, 1f / 3));
+    public const int MaxVerticesInFlatCube = 12;
+    //public static readonly int MaxChunkSize = Mathf.FloorToInt(Mathf.Pow(1f * MaxVerticesInMesh / MaxVerticesInFlatCube, 1f / 3));
     public const int MaxChunkSize = 17;
 
     [SerializeField] private int _seed = 0;
     [SerializeField, Range(1, MaxChunkSize)] private int _chunkSize = MaxChunkSize;
     [SerializeField, Min(0)] private float _amplitude = 1;
     [SerializeField, Min(0)] private float _frequency = Mathf.PI;
-    [SerializeField, Min(0)] private float _cubeSize = 1;
+    [SerializeField, Min(0)] private float _scale = 1;
+    [SerializeField] private Vector3 _offset = Vector3.zero;
     [SerializeField, Range(0, 1)] private float _surfaceBorder = 0.5f;
     [SerializeField] private AnimationCurve _surfaceLevelByHeight = AnimationCurve.Linear(0, 0, 1, 1);
     [SerializeField] private float _minHeight = 5;
-    [SerializeField, Min(0)] private float _surfaceHeight = 5;
+    [SerializeField, Min(0)] private float _maxHeight = 5;
+    [SerializeField] private bool _flat = false;
 
     public Vector3 SeedOffset
     {
@@ -29,6 +31,11 @@ public class GenerationSettings : ScriptableObject
                        random.Next(-100000, 100000),
                        random.Next(-100000, 100000));
         }
+    }
+    public Vector3 Offset
+    {
+        get => _offset;
+        set => _offset = value;
     }
 
     public int Seed
@@ -80,22 +87,32 @@ public class GenerationSettings : ScriptableObject
                 _frequency = value;
         }
     }
-    public float CubeSize
+    public float Scale
     {
-        get => _cubeSize;
+        get => _scale;
         set
         {
             if(value < 0)
-                throw new ArgumentOutOfRangeException(nameof(value), $"{nameof(CubeSize)} must be positive.");
+                throw new ArgumentOutOfRangeException(nameof(value), $"{nameof(Scale)} must be positive.");
             else
-                _cubeSize = value;
+                _scale = value;
         }
     }
 
-    public float GetSurfaceLevelMupltiplier(Vector3 point)
+    public bool Flat
     {
+        get => _flat;
+        set => _flat = value;
+    }
+
+    public float TransformSurfaceLevel(Vector3 point, float generatedSurfaceLevel)
+    {   
         float height = point.y;
-        return _surfaceLevelByHeight.Evaluate(Mathf.Clamp01((height - _minHeight) / _surfaceHeight));
+        if(height < _minHeight + 1)
+            return 1;
+        float t = (height - _minHeight) / (_maxHeight - _minHeight);
+        t = Mathf.Clamp01(t);
+        return generatedSurfaceLevel * _surfaceLevelByHeight.Evaluate(t);
     }
 
     public GenerationSettings()
