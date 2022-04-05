@@ -45,4 +45,4 @@ MonoBehaviour:
     m_RotationOrder: 4
   _minHeight: 0
   _maxHeight: 64
-  _flat: 1
+  _flat: 0

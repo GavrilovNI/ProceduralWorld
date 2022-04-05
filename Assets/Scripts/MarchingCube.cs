@@ -445,5 +445,5 @@ public static class MarchingCube
         return new(edgeToVertexIndex);
     }
 }
-#nullable disable
+#nullable restore
 

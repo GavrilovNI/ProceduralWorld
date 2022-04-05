@@ -24,4 +24,4 @@ public class UnityThread : MonoBehaviour
     }
 }
 #pragma warning restore CS8618
-#nullable disable
+#nullable restore

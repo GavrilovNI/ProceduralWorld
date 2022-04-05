@@ -40,5 +40,5 @@ public class MeshData : IMeshBuilder
     }
 }
 
-#nullable disable
+#nullable restore
 

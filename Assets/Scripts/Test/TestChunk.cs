@@ -18,5 +18,5 @@ public class TestChunk : Chunk, ITest
     }
 }
 #pragma warning restore CS8618
-#nullable disable
+#nullable restore
 

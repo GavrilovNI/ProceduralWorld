@@ -52,5 +52,5 @@ public class Chunk : MonoBehaviour
     }
 }
 #pragma warning restore CS8618
-#nullable disable
+#nullable restore
 

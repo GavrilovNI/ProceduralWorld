@@ -8,5 +8,5 @@ using UnityEditor;
 public class TestChunkEditor : GeneratorEditor
 {
 }
-#nullable disable
+#nullable restore
 
