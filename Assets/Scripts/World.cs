@@ -7,10 +7,19 @@ using UnityExtensions;
 public class World : MonoBehaviour
 {
     [SerializeField] private Chunk _chunkPrefab;
-    [SerializeField] private GenerationSettings _generationSettings;
 
     private readonly Dictionary<Vector3Int, Chunk> _chunks = new();
     private readonly System.Random _random = new();
+
+    protected ChunkGenerator ChunkGenerator;
+
+    public void Initialize(ChunkGenerator chunkGenerator)
+    {
+        if(ChunkGenerator != null)
+            throw new System.InvalidOperationException("Already initilized.");
+        else
+            ChunkGenerator = chunkGenerator;
+    }
 
     public Chunk GetChunk(Vector3Int position)
     {
@@ -19,39 +28,36 @@ public class World : MonoBehaviour
         else
             throw new System.InvalidOperationException($"Chunk {position} doesn'y exist.");
     }
-    public bool TryGetChunk(Vector3Int position, out Chunk chunk) =>
-        _chunks.TryGetValue(position, out chunk) && chunk.IsNull() == false;
+    public bool TryGetChunk(Vector3Int index, out Chunk chunk) =>
+        _chunks.TryGetValue(index, out chunk) && chunk.IsNull() == false;
 
-    public bool HasChunk(Vector3Int position) => TryGetChunk(position, out _);
+    public bool HasChunk(Vector3Int index) => TryGetChunk(index, out _);
 
-    protected Chunk CreateChunk(Vector3Int position)
+    protected Chunk CreateChunk(Vector3Int index)
     {
-        if(HasChunk(position))
-            throw new System.InvalidOperationException($"Chunk {position} already exists.");
+        if(HasChunk(index))
+            throw new System.InvalidOperationException($"Chunk {index} already exists.");
 
         Chunk chunk = GameObject.Instantiate(_chunkPrefab);
         chunk.transform.SetParent(transform);
-        chunk.transform.localPosition = _generationSettings.ChunkSize * _generationSettings.Scale * (Vector3)position;
-        chunk.name = $"{nameof(Chunk)} {position}";
-        chunk.Initialize(position);
-        _chunks[position] = chunk;
+        chunk.transform.localPosition = ChunkGenerator.GetRealChunkPosition(index);
+        chunk.name = $"{nameof(Chunk)} {index}";
+        chunk.Initialize(index);
+        _chunks[index] = chunk;
         return chunk;
     }
     protected Chunk GetOrCreateChunk(Vector3Int position) =>
         TryGetChunk(position, out Chunk chunk) ? chunk : CreateChunk(position);
 
-    public void GenerateChunk(Vector3Int position) =>
-        GetOrCreateChunk(position).Generate(_generationSettings);
+    public void GenerateChunk(Vector3Int position, UnityThread unityThread, System.Action? callback = null) =>
+        GetOrCreateChunk(position).Generate(ChunkGenerator, unityThread, callback);
 
-    public void GenerateChunkParallel(Vector3Int position, UnityThread unityThread, System.Action? callback = null, int actionsInOneThreadNoise = 1, int actionsInOneThreadMesh = 1) =>
-        GetOrCreateChunk(position).GenerateParallel(_generationSettings, unityThread, callback, actionsInOneThreadNoise, actionsInOneThreadMesh);
-
-    public void RemoveChunk(Vector3Int position)
+    public void RemoveChunk(Vector3Int index)
     {
-        if(TryGetChunk(position, out Chunk chunk) == false)
-            throw new System.InvalidOperationException($"Chunk {position} doesn'y exist.");
+        if(TryGetChunk(index, out Chunk chunk) == false)
+            throw new System.InvalidOperationException($"Chunk {index} doesn'y exist.");
 
-        _chunks.Remove(position);
+        _chunks.Remove(index);
         chunk.gameObject.DestroyAnywhere();
     }
 }

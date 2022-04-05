@@ -4,25 +4,22 @@ using UnityEditor;
 [CustomEditor(typeof(TestWorld))]
 public class TestWorldEditor : GeneratorEditor
 {
-    private bool _showSettings = false;
+    private bool _showMeshSettings = false;
+    private bool _showNoiseSettings = false;
 
-    public override void OnInspectorGUI()
+    private void DrawScriptableObject(SerializedProperty serializedProperty, ref bool opened)
     {
-        base.OnInspectorGUI();
-
-        SerializedProperty settings = serializedObject.FindProperty("_generationSettings");
-
-        bool found = settings.objectReferenceValue != null;
+        bool found = serializedProperty.objectReferenceValue != null;
         if(found)
         {
-            _showSettings = EditorGUILayout.Foldout(_showSettings, "Settings");
+            opened = EditorGUILayout.Foldout(opened, serializedProperty.displayName);
 
-            if(_showSettings)
+            if(opened)
             {
                 serializedObject.Update();
 
                 Editor? editor = null;
-                Editor.CreateCachedEditor(settings?.objectReferenceValue, null, ref editor);
+                Editor.CreateCachedEditor(serializedProperty.objectReferenceValue, null, ref editor);
                 EditorGUI.BeginChangeCheck();
                 editor.OnInspectorGUI();
                 if(EditorGUI.EndChangeCheck())
@@ -31,6 +28,17 @@ public class TestWorldEditor : GeneratorEditor
                 serializedObject.ApplyModifiedProperties();
             }
         }
+    }
+
+    public override void OnInspectorGUI()
+    {
+        base.OnInspectorGUI();
+
+        SerializedProperty meshSettings = serializedObject.FindProperty("_meshSettings");
+        SerializedProperty noiseSettings = serializedObject.FindProperty("_noiseSettings");
+
+        DrawScriptableObject(meshSettings, ref _showMeshSettings);
+        DrawScriptableObject(noiseSettings, ref _showNoiseSettings);
     }
 }
 #nullable restore

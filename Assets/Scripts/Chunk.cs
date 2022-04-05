@@ -8,9 +8,9 @@ using UnityEngine;
 public class Chunk : MonoBehaviour
 {
     private MeshFilter _meshFilter;
-    private Vector3Int _chunkPosition;
+    private Vector3Int _chunkIndex;
 
-    private CancellationTokenSource _parallelGenerationCancellationToken;
+    private CancellationTokenSource? _generationCancellationToken;
 
     private void Awake()
     {
@@ -19,36 +19,28 @@ public class Chunk : MonoBehaviour
 
     public void Initialize(Vector3Int chunkPosition)
     {
-        _chunkPosition = chunkPosition;
+        _chunkIndex = chunkPosition;
     }
 
-    public void Generate(GenerationSettings settings)
+    public void Generate(ChunkGenerator chunkGenerator, UnityThread unityThread, System.Action? callback = null)
     {
-        var chunkBuilder = MeshGenerator.GenerateChunk(_chunkPosition, settings);
-        _meshFilter.sharedMesh = chunkBuilder.Build();
-    }
-
-    public void GenerateParallel(GenerationSettings settings, UnityThread unityThread, System.Action? callback = null, int actionsInOneThreadNoise = 1000, int actionsInOneThreadMesh = 1000)
-    {
-        _parallelGenerationCancellationToken?.Cancel();
-        _parallelGenerationCancellationToken = new();
-        MeshGenerator.GenerateChunkParallel(_chunkPosition, settings, chunkBuilder =>
+        _generationCancellationToken?.Cancel();
+        _generationCancellationToken = new();
+        chunkGenerator.GenerateChunkMesh(_chunkIndex, meshBuilder =>
         {
-            if(_parallelGenerationCancellationToken.IsCancellationRequested)
-                return;
             unityThread.Enqueue(() =>
             {
-                if(_parallelGenerationCancellationToken.IsCancellationRequested)
+                if(_generationCancellationToken != null && _generationCancellationToken.IsCancellationRequested)
                     return;
-                _meshFilter.sharedMesh = chunkBuilder.Build();
+                _meshFilter.sharedMesh = meshBuilder.Build();
                 callback?.Invoke();
             });
-        }, actionsInOneThreadNoise, actionsInOneThreadMesh, _parallelGenerationCancellationToken);
+        }, _generationCancellationToken);
     }
 
     private void OnDisable()
     {
-        _parallelGenerationCancellationToken?.Cancel();
+        _generationCancellationToken?.Cancel();
     }
 }
 #pragma warning restore CS8618

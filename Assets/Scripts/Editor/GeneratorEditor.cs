@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEditor;
 
+[CustomEditor(typeof(ITest), editorForChildClasses: true)]
 public abstract class GeneratorEditor : Editor
 {
     protected bool AutoUpdate = false;
@@ -27,7 +28,7 @@ public abstract class GeneratorEditor : Editor
     {
         if(target is ITest generatable)
         {
-            generatable.Reset();
+            generatable.ResetTest();
             generatable.Test();
         }
     }
@@ -35,7 +36,7 @@ public abstract class GeneratorEditor : Editor
     protected void ResetTest()
     {
         if(target is ITest generatable)
-            generatable.Reset();
+            generatable.ResetTest();
     }
 
     protected void MarkDirty()

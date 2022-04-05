@@ -15,21 +15,39 @@ namespace UnityExtensions
             return (count + actionsInOneThread - 1) / actionsInOneThread;
         }
 
-        public static void ForEach(this BoundsInt bounds, Action<int, int, int> action)
+        public static void ForEach(this BoundsInt bounds, Action<Vector3Int> action, CancellationTokenSource? cancellationToken = null)
         {
             if(bounds == null)
                 throw new ArgumentNullException(nameof(bounds));
             if(action == null)
                 return;
 
+            Func<Vector3Int, bool> InnerFunc;
+            if(cancellationToken == null)
+            {
+                InnerFunc = (point) =>
+                {
+                    action(point);
+                    return false;
+                };
+            }
+            else
+            {
+                InnerFunc = (point) =>
+                {
+                    if(cancellationToken.IsCancellationRequested)
+                        return true;
+                    action(point);
+                    return false;
+                };
+            }
+
             for(int z = bounds.zMin; z < bounds.zMax; z++)
                 for(int y = bounds.yMin; y < bounds.yMax; y++)
                     for(int x = bounds.xMin; x < bounds.xMax; x++)
-                        action.Invoke(x, y, z);
+                        if(InnerFunc(new Vector3Int(x, y, z)))
+                            return;
         }
-
-        public static void ForEach(this BoundsInt bounds, Action<Vector3Int> action) =>
-            bounds.ForEach((x, y, z) => action(new Vector3Int(x, y, z)));
 
         public static void ForEachParallel(this BoundsInt bounds, Action<Vector3Int> action, Action? callback = null, int actionsInOneThread = 100, CancellationTokenSource? cancellationToken = null)
         {
