@@ -57,9 +57,8 @@ public class TestWorld : World, ITest
     public void RemoveAllChunks()
     {
         foreach(var chunk in transform.GetComponentsInChildren<Chunk>())
-            GameObject.DestroyImmediate(chunk.gameObject);
+            chunk.gameObject.DestroyAnywhere();
     }
 }
 #pragma warning restore CS8618
 #nullable restore
-

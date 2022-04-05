@@ -49,7 +49,7 @@ public static class DirectionClass
         Vector3Int.back
     };
 
-    //return not normalized vector
+    //returns not normalized vector
     public static Vector3Int ToVector(this Direction direction)
     {
         Vector3Int result = Vector3Int.zero;
@@ -150,4 +150,3 @@ public static class DirectionClass
     }
 }
 #nullable restore
-

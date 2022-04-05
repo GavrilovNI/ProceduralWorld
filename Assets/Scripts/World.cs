@@ -10,21 +10,20 @@ public class World : MonoBehaviour
     [SerializeField] private GenerationSettings _generationSettings;
 
     private readonly Dictionary<Vector3Int, Chunk> _chunks = new();
-    private System.Random _random = new();
+    private readonly System.Random _random = new();
 
-    public Chunk? GetChunk(Vector3Int position)
+    public Chunk GetChunk(Vector3Int position)
     {
-        if(_chunks.ContainsKey(position))
-        {
-            var chunk = _chunks[position];
-            return chunk.IsNull() ? null : _chunks[position];
-        }
+        if(TryGetChunk(position, out Chunk chunk))
+            return chunk;
         else
-        {
-            return null;
-        }
+            throw new System.InvalidOperationException($"Chunk {position} doesn'y exist.");
     }
-    public bool HasChunk(Vector3Int position) => GetChunk(position) != null;
+    public bool TryGetChunk(Vector3Int position, out Chunk chunk) =>
+        _chunks.TryGetValue(position, out chunk) && chunk.IsNull() == false;
+
+    public bool HasChunk(Vector3Int position) => TryGetChunk(position, out _);
+
     protected Chunk CreateChunk(Vector3Int position)
     {
         if(HasChunk(position))
@@ -38,36 +37,23 @@ public class World : MonoBehaviour
         _chunks[position] = chunk;
         return chunk;
     }
+    protected Chunk GetOrCreateChunk(Vector3Int position) =>
+        TryGetChunk(position, out Chunk chunk) ? chunk : CreateChunk(position);
 
-    public void GenerateChunk(Vector3Int position)
-    {
-        Chunk chunk = GetChunk(position) ?? CreateChunk(position);
-        chunk.Generate(_generationSettings);
-    }
+    public void GenerateChunk(Vector3Int position) =>
+        GetOrCreateChunk(position).Generate(_generationSettings);
 
-    public void GenerateChunkParallel(Vector3Int position, UnityThread unityThread, System.Action? callback = null, int actionsInOneThreadNoise = 1, int actionsInOneThreadMesh = 1)
-    {
-        Chunk chunk = GetChunk(position) ?? CreateChunk(position);
-        chunk.GenerateParallel(_generationSettings, unityThread, callback, actionsInOneThreadNoise, actionsInOneThreadMesh);
-    }
+    public void GenerateChunkParallel(Vector3Int position, UnityThread unityThread, System.Action? callback = null, int actionsInOneThreadNoise = 1, int actionsInOneThreadMesh = 1) =>
+        GetOrCreateChunk(position).GenerateParallel(_generationSettings, unityThread, callback, actionsInOneThreadNoise, actionsInOneThreadMesh);
 
     public void RemoveChunk(Vector3Int position)
     {
-        Chunk? chunk = GetChunk(position);
-        if(chunk == null)
+        if(TryGetChunk(position, out Chunk chunk) == false)
             throw new System.InvalidOperationException($"Chunk {position} doesn'y exist.");
 
         _chunks.Remove(position);
-#if UNITY_EDITOR
-        if(Application.isPlaying)
-            GameObject.Destroy(chunk.gameObject);
-        else
-            GameObject.DestroyImmediate(chunk.gameObject);
-#else
-        GameObject.Destroy(chunk.gameObject);
-#endif
+        chunk.gameObject.DestroyAnywhere();
     }
 }
 #pragma warning restore CS8618
 #nullable restore
-

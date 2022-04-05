@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Threading;
 using UnityEngine;
@@ -98,4 +99,4 @@ namespace UnityExtensions
         }
     }
 }
-
+#nullable restore

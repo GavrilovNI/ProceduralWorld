@@ -1,3 +1,4 @@
+#nullable enable
 using UnityEngine;
 
 namespace UnityExtensions
@@ -7,4 +8,4 @@ namespace UnityExtensions
         public static bool IsNull(this MonoBehaviour obj) => obj == null || obj.Equals(null);
     }
 }
-
+#nullable restore

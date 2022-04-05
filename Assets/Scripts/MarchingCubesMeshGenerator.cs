@@ -150,4 +150,3 @@ public class MarchingCubesMeshGenerator : IMeshBuilder
     }
 }
 #nullable restore
-

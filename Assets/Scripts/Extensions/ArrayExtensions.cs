@@ -1,3 +1,4 @@
+#nullable enable
 using UnityEngine;
 
 namespace UnityExtensions
@@ -19,3 +20,4 @@ namespace UnityExtensions
         }
     }
 }
+#nullable restore

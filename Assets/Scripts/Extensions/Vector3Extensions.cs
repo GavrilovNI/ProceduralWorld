@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using UnityEngine;
 
 namespace UnityExtensions
@@ -24,6 +25,6 @@ namespace UnityExtensions
                 throw new ArgumentException(nameof(size), "All axis must be greater or equal 0.");
             return new BoundsInt(start, size);
         }
-
     }
 }
+#nullable restore

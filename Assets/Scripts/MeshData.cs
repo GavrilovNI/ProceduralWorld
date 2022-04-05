@@ -39,6 +39,4 @@ public class MeshData : IMeshBuilder
         return mesh;
     }
 }
-
 #nullable restore
-
