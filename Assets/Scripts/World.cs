@@ -45,6 +45,12 @@ public class World : MonoBehaviour
         chunk.Generate(_generationSettings);
     }
 
+    public void GenerateChunkParallel(Vector3Int position, UnityThread unityThread, System.Action? callback = null, int actionsInOneThreadNoise = 1, int actionsInOneThreadMesh = 1)
+    {
+        Chunk chunk = GetChunk(position) ?? CreateChunk(position);
+        chunk.GenerateParallel(_generationSettings, unityThread, callback, actionsInOneThreadNoise, actionsInOneThreadMesh);
+    }
+
     public void RemoveChunk(Vector3Int position)
     {
         Chunk? chunk = GetChunk(position);

@@ -1,13 +1,15 @@
 #nullable enable
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 using UnityExtensions;
 
-public class MarchingCubesMeshGenerator
+public class MarchingCubesMeshGenerator : IMeshBuilder
 {
     private readonly float _cubeSize = 1;
     private readonly MeshData _meshData = new();
-    private readonly Dictionary<Vector3Int, CreatedMatchingCubeInfo> _cubes = new();
+    private readonly ConcurrentDictionary<Vector3Int, CreatedMatchingCubeInfo> _cubes = new();
 
     public MarchingCubesMeshGenerator(float cubeSize)
     {
@@ -22,16 +24,16 @@ public class MarchingCubesMeshGenerator
     {
         if(surfaceLevels.Length != 8)
             throw new System.ArgumentException(nameof(surfaceLevels), "Length must be 8");
-        if(HasCube(position))
-            throw new System.InvalidOperationException($"Cube on position {position} already exists.");
 
         var cubeInfo = MarchingCube.AddFlatCubeToMesh(_meshData, surfaceLevels, surfaceBorder, position.ToFloat() * _cubeSize, _cubeSize);
-        _cubes.Add(position, cubeInfo);
+        if(_cubes.TryAdd(position, cubeInfo) == false)
+            throw new System.InvalidOperationException($"Cube on position {position} already exists.");
+
     }
     private void CreateSmoothCube(float[] surfaceLevels, float surfaceBorder, Vector3Int position, Dictionary<Direction, CreatedMatchingCubeInfo> neighbors)
     {
         var cubeInfo = MarchingCube.AddSmoothCubeToMesh(_meshData, surfaceLevels, surfaceBorder, position.ToFloat() * _cubeSize, _cubeSize, neighbors);
-        _cubes.Add(position, cubeInfo);
+        _cubes.TryAdd(position, cubeInfo);
     }
 
     public void CreateSmoothCube(float[] surfaceLevels, float surfaceBorder, Vector3Int position)
@@ -70,6 +72,46 @@ public class MarchingCubesMeshGenerator
                 neighbors.Add(direction, cube);
         }
         CreateSmoothCube(surfaceLevels, surfaceBorder, position, neighbors);
+    }
+
+    public static void CreateParallel(float[,,] surfaceLevels, float surfaceBorder, float cubeSize, bool flat, System.Action<MarchingCubesMeshGenerator> callback, int actionsInOneThread = 1, CancellationTokenSource? cancellationToken = null)
+    {
+        int zLength = surfaceLevels.GetLength(0) - 1;
+        int yLength = surfaceLevels.GetLength(1) - 1;
+        int xLength = surfaceLevels.GetLength(2) - 1;
+        if(zLength < 1 || yLength < 1 || xLength < 1)
+            throw new System.ArgumentException(nameof(surfaceLevels), "All dimensions have at least length of 2.");
+
+        if(flat == false)
+            throw new System.NotImplementedException($"Not omplemented parallel if {nameof(flat)} == false.");
+
+        MarchingCubesMeshGenerator result = new(cubeSize);
+
+        float[] GetSurfaceLevels(Vector3Int position) => new float[8] {
+                        surfaceLevels[position.z, position.y, position.x],
+                        surfaceLevels[position.z, position.y, position.x + 1],
+                        surfaceLevels[position.z + 1, position.y, position.x + 1],
+                        surfaceLevels[position.z + 1, position.y, position.x],
+                        surfaceLevels[position.z, position.y + 1, position.x],
+                        surfaceLevels[position.z, position.y + 1, position.x + 1],
+                        surfaceLevels[position.z + 1, position.y + 1, position.x + 1],
+                        surfaceLevels[position.z + 1, position.y + 1, position.x]
+                    };
+
+        BoundsInt bounds = new(Vector3Int.zero, new Vector3Int(xLength, yLength, zLength));
+
+        if(flat)
+        {
+            bounds.ForEachParallel(position =>
+            {
+                var currentSurfaceLevels = GetSurfaceLevels(position);
+                result.CreateFlatCube(currentSurfaceLevels, surfaceBorder, position);
+            },
+            () =>
+            {
+                callback(result);
+            }, actionsInOneThread, cancellationToken);
+        }
     }
 
     public static MarchingCubesMeshGenerator Create(float[,,] surfaceLevels, float surfaceBorder, float cubeSize, bool flat)
