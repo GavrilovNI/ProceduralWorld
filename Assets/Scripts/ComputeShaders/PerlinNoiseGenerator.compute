@@ -1,0 +1,156 @@
+#pragma kernel GetRange
+#include "/NoiseTables.compute"
+#include "/AnimationCurve.compute"
+
+float3 Offset;
+int3 Size;
+float Frequency;
+float3 SeedOffset;
+float Amplitude;
+float MinHeight;
+float MaxHeight;
+
+float4 SurfaceLevelByHeight[16];
+int SurfaceLevelByHeightSize;
+
+RWStructuredBuffer<float> SurfaceLevels;
+
+
+
+
+float SmoothDistance(float distance)
+{
+    return distance * distance * distance * (distance * (distance * 6 - 15) + 10);
+}
+float DotProduct(float3 a, float3 b)
+{
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+float Lerp(float a, float b, float t)
+{
+    return a + (b - a) * t;
+}
+float Clamp(float a, float min, float max)
+{
+    if (a < min)
+        return min;
+    if (a > max)
+        return max;
+    return a;
+}
+
+float TransformSurfaceLevel(float3 pos, float generatedSurfaceLevel)
+{
+    float height = pos.y;
+    if (height <= MinHeight)
+        return EvaluateAnumationCurve(0, SurfaceLevelByHeight, SurfaceLevelByHeightSize);
+    if (height > MaxHeight)
+        return EvaluateAnumationCurve(1, SurfaceLevelByHeight, SurfaceLevelByHeightSize);
+
+    float t = (height - MinHeight) / (MaxHeight - MinHeight);
+    t = Clamp(t, 0, 1);
+    return generatedSurfaceLevel * EvaluateAnumationCurve(t, SurfaceLevelByHeight, SurfaceLevelByHeightSize);
+}
+
+float Get(float3 pos)
+{
+    int flooredPointX0 = floor(pos.x);
+    int flooredPointY0 = floor(pos.y);
+    int flooredPointZ0 = floor(pos.z);
+
+    float distanceX0 = pos.x - flooredPointX0;
+    float distanceY0 = pos.y - flooredPointY0;
+    float distanceZ0 = pos.z - flooredPointZ0;
+
+    float distanceX1 = distanceX0 - 1;
+    float distanceY1 = distanceY0 - 1;
+    float distanceZ1 = distanceZ0 - 1;
+
+    flooredPointX0 &= _permutationCountMinus1;
+    flooredPointY0 &= _permutationCountMinus1;
+    flooredPointZ0 &= _permutationCountMinus1;
+
+    int flooredPointX1 = flooredPointX0 + 1;
+    int flooredPointY1 = flooredPointY0 + 1;
+    int flooredPointZ1 = flooredPointZ0 + 1;
+
+    int permutationX0 = _permutation[flooredPointX0];
+    int permutationX1 = _permutation[flooredPointX1];
+
+    int permutationY00 = _permutation[permutationX0 + flooredPointY0];
+    int permutationY01 = _permutation[permutationX0 + flooredPointY1];
+    int permutationY10 = _permutation[permutationX1 + flooredPointY0];
+    int permutationY11 = _permutation[permutationX1 + flooredPointY1];
+
+    int permutationZ000 = _permutation[permutationY00 + flooredPointZ0];
+    int permutationZ001 = _permutation[permutationY00 + flooredPointZ1];
+    int permutationZ010 = _permutation[permutationY01 + flooredPointZ0];
+    int permutationZ011 = _permutation[permutationY01 + flooredPointZ1];
+    int permutationZ100 = _permutation[permutationY10 + flooredPointZ0];
+    int permutationZ101 = _permutation[permutationY10 + flooredPointZ1];
+    int permutationZ110 = _permutation[permutationY11 + flooredPointZ0];
+    int permutationZ111 = _permutation[permutationY11 + flooredPointZ1];
+
+    float3 direction000 = _directions[permutationZ000 & _directionCountMinusOne];
+    float3 direction001 = _directions[permutationZ001 & _directionCountMinusOne];
+    float3 direction010 = _directions[permutationZ010 & _directionCountMinusOne];
+    float3 direction011 = _directions[permutationZ011 & _directionCountMinusOne];
+    float3 direction100 = _directions[permutationZ100 & _directionCountMinusOne];
+    float3 direction101 = _directions[permutationZ101 & _directionCountMinusOne];
+    float3 direction110 = _directions[permutationZ110 & _directionCountMinusOne];
+    float3 direction111 = _directions[permutationZ111 & _directionCountMinusOne];
+
+    float value000 = DotProduct(direction000, float3(distanceX0, distanceY0, distanceZ0));
+    float value001 = DotProduct(direction001, float3(distanceX0, distanceY0, distanceZ1));
+    float value010 = DotProduct(direction010, float3(distanceX0, distanceY1, distanceZ0));
+    float value011 = DotProduct(direction011, float3(distanceX0, distanceY1, distanceZ1));
+    float value100 = DotProduct(direction100, float3(distanceX1, distanceY0, distanceZ0));
+    float value101 = DotProduct(direction101, float3(distanceX1, distanceY0, distanceZ1));
+    float value110 = DotProduct(direction110, float3(distanceX1, distanceY1, distanceZ0));
+    float value111 = DotProduct(direction111, float3(distanceX1, distanceY1, distanceZ1));
+
+    float smoothDistanceX = SmoothDistance(distanceX0);
+    float smoothDistanceY = SmoothDistance(distanceY0);
+    float smoothDistanceZ = SmoothDistance(distanceZ0);
+
+
+    float notClampedResult = Lerp(Lerp(Lerp(value000, value100, smoothDistanceX),
+                                       Lerp(value010, value110, smoothDistanceX),
+                                       smoothDistanceY),
+                                  Lerp(Lerp(value001, value101, smoothDistanceX),
+                                  Lerp(value011, value111, smoothDistanceX),
+                                  smoothDistanceY),
+                             smoothDistanceZ);
+
+    return Clamp(notClampedResult, -1, 1);
+}
+
+float Get(float3 pos, float min, float max)
+{
+    float value = Get(pos);
+    return Lerp(min, max, (value + 1) / 2);
+}
+
+float Get01(float3 pos)
+{
+    return Get(pos, 0, 1);
+}
+
+int PositionToIndex(int3 pos)
+{
+    return ((pos.z * Size.y) + pos.y) * Size.x + pos.x;
+}
+
+[numthreads(8, 8, 8)]
+void GetRange(int3 id : SV_DispatchThreadID)
+{
+    if (id.x >= Size.x || id.y >= Size.y || id.z >= Size.z)
+        return;
+
+    float3 blockPosition = id + Offset;
+    float surfaceLevel = Get01(blockPosition * Frequency + SeedOffset);
+    surfaceLevel = TransformSurfaceLevel(blockPosition, surfaceLevel) * Amplitude;
+
+    int index = PositionToIndex(id);
+    SurfaceLevels[index] = surfaceLevel;
+}

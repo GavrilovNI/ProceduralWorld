@@ -30,19 +30,24 @@ public class MarchingCubesMeshGenerator : IMeshBuilder
             throw new System.InvalidOperationException($"Cube on position {position} already exists.");
 
     }
+    public void CreateSmoothCube(float[] surfaceLevels, float surfaceBorder, Vector3Int position)
+    {
+        if(surfaceLevels.Length != 8)
+            throw new System.ArgumentException(nameof(surfaceLevels), "Length must be 8");
+
+        var cubeInfo = MarchingCube.AddSmoothCubeToMesh(_meshData, surfaceLevels, surfaceBorder, position.ToFloat() * _cubeSize, _cubeSize);
+        if(_cubes.TryAdd(position, cubeInfo) == false)
+            throw new System.InvalidOperationException($"Cube on position {position} already exists.");
+
+    }
     private void CreateSmoothCube(float[] surfaceLevels, float surfaceBorder, Vector3Int position, Dictionary<Direction, CreatedMatchingCubeInfo> neighbors)
     {
         var cubeInfo = MarchingCube.AddSmoothCubeToMesh(_meshData, surfaceLevels, surfaceBorder, position.ToFloat() * _cubeSize, _cubeSize, neighbors);
         _cubes.TryAdd(position, cubeInfo);
     }
 
-    public void CreateSmoothCube(float[] surfaceLevels, float surfaceBorder, Vector3Int position)
+    private Dictionary<Direction, CreatedMatchingCubeInfo> GetNeighbors(Vector3Int position)
     {
-        if(surfaceLevels.Length != 8)
-            throw new System.ArgumentException(nameof(surfaceLevels), "Length must be 8");
-        if(HasCube(position))
-            throw new System.InvalidOperationException($"Cube on position {position} already exists.");
-
         Direction[] directions = new Direction[]
         {
             Direction.Up,
@@ -71,21 +76,18 @@ public class MarchingCubesMeshGenerator : IMeshBuilder
             if(_cubes.TryGetValue(position + direction.ToVector(), out var cube))
                 neighbors.Add(direction, cube);
         }
-        CreateSmoothCube(surfaceLevels, surfaceBorder, position, neighbors);
+        return neighbors;
     }
 
     private static float[] GetBlockSurfaceLevels(float[,,] surfaceLevels, Vector3Int position)
     {
-        return new float[8] {
-                        surfaceLevels[position.z, position.y, position.x],
-                        surfaceLevels[position.z, position.y, position.x + 1],
-                        surfaceLevels[position.z + 1, position.y, position.x + 1],
-                        surfaceLevels[position.z + 1, position.y, position.x],
-                        surfaceLevels[position.z, position.y + 1, position.x],
-                        surfaceLevels[position.z, position.y + 1, position.x + 1],
-                        surfaceLevels[position.z + 1, position.y + 1, position.x + 1],
-                        surfaceLevels[position.z + 1, position.y + 1, position.x]
-                    };
+        float[] result = new float[8];
+        for(int i = 0; i< 8; i++)
+        {
+            Vector3Int pos = position + MarchingCube.GetVertexOffset(i);
+            result[i] = surfaceLevels[pos.z, pos.y, pos.x];
+        }
+        return result;
     }
     private static System.Action<float[], float, Vector3Int> GetCubeGenerationMethod(MarchingCubesMeshGenerator meshGenerator, bool flat)
     {

@@ -1,0 +1,78 @@
+#pragma kernel GenerateFlatCube
+#include "/MarchingTables.compute"
+
+float Scale;
+int ChunkSizePlusOne;
+float SurfaceBorder;
+RWStructuredBuffer<float> SurfaceLevels;
+
+struct Triangle
+{
+    float3 a;
+    float3 b;
+    float3 c;
+};
+
+AppendStructuredBuffer<Triangle> Triangles;
+
+int GetCubeIndex(float surfaceLevels[8], float surfaceBorder)
+{
+    int cubeIndex = 0;
+    int pow2 = 1;
+    for (int i = 0; i < 8; i++)
+    {
+        if (surfaceLevels[i] > surfaceBorder)
+            cubeIndex |= pow2;
+        pow2 *= 2;
+    }
+    return cubeIndex;
+}
+
+float3 Lerp(float3 a, float3 b, float t)
+{
+    return a + (b - a) * t;
+}
+
+float3 GetEdgePoint(int edgeIndex, float surfaceLevels[8], float surfaceBorder, float3 offset, float scale)
+{
+    int2 vertexes = _edgePoints[edgeIndex];
+    int a = vertexes.x;
+    int b = vertexes.y;
+    float3 pos = Lerp(_vertexOffset[a], _vertexOffset[b], (surfaceBorder - surfaceLevels[a]) / (surfaceLevels[b] - surfaceLevels[a]));
+    return offset + pos * scale;
+}
+
+int GetIndexByPointPosition(int3 position)
+{
+    return (position.z * ChunkSizePlusOne + position.y) * ChunkSizePlusOne + position.x;
+}
+
+[numthreads(8,8,8)]
+void GenerateFlatCube(int3 id : SV_DispatchThreadID)
+{
+    if (id.x >= ChunkSizePlusOne - 1 || id.y >= ChunkSizePlusOne - 1 || id.z >= ChunkSizePlusOne - 1) {
+        return;
+    }
+
+    float surfaceLevels[8];
+    for (int k = 0; k < 8; k++)
+        surfaceLevels[k] = SurfaceLevels[GetIndexByPointPosition(id + _vertexOffset[k])];
+
+    int cubeIndex = GetCubeIndex(surfaceLevels, SurfaceBorder);
+
+
+    for (int i = 0; _edgesByCubeIndex[cubeIndex][i] != -1; i += 3)
+    {
+        float3 triPoints[3];
+        for (int j = 0; j < 3; j++)
+        {
+            int edgeIndex = _edgesByCubeIndex[cubeIndex][i + j];
+            triPoints[j] = GetEdgePoint(edgeIndex, surfaceLevels, SurfaceBorder, id, Scale);
+        }
+        Triangle tri;
+        tri.a = triPoints[0];
+        tri.b = triPoints[1];
+        tri.c = triPoints[2];
+        Triangles.Append(tri);
+    }
+}

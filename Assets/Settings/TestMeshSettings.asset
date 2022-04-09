@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d313f426ecbc7a041b7dd2ef90e57d0b, type: 3}
   m_Name: TestMeshSettings
   m_EditorClassIdentifier: 
-  _surfaceBorder: 0.43
+  _surfaceBorder: 0.505
   _chunkSize: 16
   _scale: 1
-  _flat: 0
+  _flat: 1

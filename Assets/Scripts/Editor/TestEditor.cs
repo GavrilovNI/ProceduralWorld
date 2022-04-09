@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEditor;
 
 [CustomEditor(typeof(ITest), editorForChildClasses: true)]
-public abstract class GeneratorEditor : Editor
+public abstract class TestEditor : Editor
 {
     protected bool AutoUpdate = false;
 

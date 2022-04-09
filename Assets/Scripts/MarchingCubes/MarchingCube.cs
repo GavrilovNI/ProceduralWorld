@@ -6,24 +6,32 @@ using System;
 
 public class CreatedMatchingCubeInfo
 {
-    private Dictionary<int, int> _edgeToVertexIndexes;
+    private Dictionary<int, List<int>> _edgeToVerticesIndexes;
 
     public CreatedMatchingCubeInfo(Dictionary<int, int> edgeToVertexIndexes)
     {
-        _edgeToVertexIndexes = edgeToVertexIndexes;
+        _edgeToVerticesIndexes = edgeToVertexIndexes.ToDictionary(p => p.Key, p => new int[1] { p.Value }.ToList());
+    }   
+    public CreatedMatchingCubeInfo(Dictionary<int, List<int>> edgeToVertexIndexes)
+    {
+        _edgeToVerticesIndexes = edgeToVertexIndexes;
     }
 
-    public bool HasEdgeIndex(int edgeIndex) => _edgeToVertexIndexes.ContainsKey(edgeIndex);
-    public int GetVertexIndex(int edgeIndex)
+    public bool HasEdgeIndex(int edgeIndex) => _edgeToVerticesIndexes.ContainsKey(edgeIndex);
+    public int GetFirstVertexIndex(int edgeIndex)
     {
-        if(_edgeToVertexIndexes.TryGetValue(edgeIndex, out int vertexIndex))
-            return vertexIndex;
-        return -1;
+        return _edgeToVerticesIndexes[edgeIndex][0];
     }
 
-    public bool TryGetVertexIndex(int edgeIndex, out int vertexIndex)
+    public bool TryGetFirstVertexIndex(int edgeIndex, out int vertexIndex)
     {
-        return _edgeToVertexIndexes.TryGetValue(edgeIndex, out vertexIndex);
+        if(_edgeToVerticesIndexes.TryGetValue(edgeIndex, out var vertexIndexes))
+        {
+            vertexIndex = vertexIndexes[0];
+            return true;
+        }
+        vertexIndex = -1;
+        return false;
     }
 }
 
@@ -352,16 +360,16 @@ public static class MarchingCube
         new int[]{0, 3, 8},
         new int[]{}
     };
-    private static readonly Vector3[] _vertexOffset = new Vector3[8]
+    private static readonly Vector3Int[] _vertexOffset = new Vector3Int[8]
     {
-        Vector3.zero,
-        Vector3.right,
-        new Vector3(1, 0, 1),
-        Vector3.forward,
-        Vector3.up,
-        new Vector3(1, 1, 0),
-        Vector3.one,
-        new Vector3(0, 1, 1)
+        Vector3Int.zero,
+        Vector3Int.right,
+        new Vector3Int(1, 0, 1),
+        Vector3Int.forward,
+        Vector3Int.up,
+        new Vector3Int(1, 1, 0),
+        Vector3Int.one,
+        new Vector3Int(0, 1, 1)
     };
     private static readonly (int, int)[] _edgePoints = new (int, int)[12]
     {
@@ -378,24 +386,78 @@ public static class MarchingCube
         (2, 6),
         (3, 7),
     };
+    public static Vector3Int GetVertexOffset(int i) => _vertexOffset[i];
 
-    public static int GetCubeIndex(float[] vertexesValues, float surfaceBorder)
+    public static int GetCubeIndex(float[] surfaceLevels, float surfaceBorder)
     {
-        if(vertexesValues.Length != 8)
-            throw new System.ArgumentOutOfRangeException(nameof(vertexesValues), "Length must be = 8.");
+        if(surfaceLevels.Length != 8)
+            throw new System.ArgumentOutOfRangeException(nameof(surfaceLevels), "Length must be = 8.");
 
         int cubeIndex = 0;
         int pow2 = 1;
         for(int i = 0; i < 8; i++)
         {
-            if(vertexesValues[i] > surfaceBorder)
+            if(surfaceLevels[i] > surfaceBorder)
                 cubeIndex |= pow2;
             pow2 *= 2;
         }
         return cubeIndex;
     }
 
+    public static CreatedMatchingCubeInfo AddCubeToMesh(MeshData meshData, int cubeIndex, bool flat = true, float surfaceBorder = 0.5f, Vector3 offset = default, float size = 1)
+    {
+        if(cubeIndex < 0 || cubeIndex >= _edgesByCubeIndex.Length)
+            throw new ArgumentOutOfRangeException(nameof(cubeIndex));
+        float[] surfaceLevels = new float[8];
+        int pow2 = 1;
+        for(int i = 0; i < 8; i++)
+        {
+            bool isInside = (cubeIndex & pow2) != 0;
+            surfaceLevels[i] = isInside ? 1 : 0;
+            pow2 *= 2;
+        }
+        var test = GetCubeIndex(surfaceLevels, surfaceBorder);
+        if(flat)
+            return AddFlatCubeToMesh(meshData, surfaceLevels, surfaceBorder, offset, size);
+        else
+            return AddSmoothCubeToMesh(meshData, surfaceLevels, surfaceBorder, offset, size);
+    }
+
+    private static Vector3 GetEdgePoint(int edgeIndex, float[] surfaceLevels, float surfaceBorder, Vector3 offset, float cubeSize)
+    {
+        (int a, int b) = _edgePoints[edgeIndex];
+        Vector3 point = Vector3.Lerp(_vertexOffset[a], _vertexOffset[b], (surfaceBorder - surfaceLevels[a]) / (surfaceLevels[b] - surfaceLevels[a]));
+        return offset + point * cubeSize;
+    }
+
     public static CreatedMatchingCubeInfo AddFlatCubeToMesh(MeshData meshData, float[] surfaceLevels, float surfaceBorder, Vector3 offset, float size)
+    {
+        int cubeIndex = GetCubeIndex(surfaceLevels, surfaceBorder);
+        int[] edgeIndexes = _edgesByCubeIndex[cubeIndex];
+
+        Dictionary<int, List<int>> edgeToVertexIndex = new();
+        for(int i = 0; i < edgeIndexes.Length; i += 3)
+        {
+            int[] triangle = new int[3];
+            for(int j = 0; j < 3; j++)
+            {
+                int edgeIndex = edgeIndexes[i + j];
+
+                Vector3 point = GetEdgePoint(edgeIndex, surfaceLevels, surfaceBorder, offset, size);
+                int vertexId = meshData.AddVertex(point);
+
+                if(edgeToVertexIndex.ContainsKey(edgeIndex) == false)
+                    edgeToVertexIndex[edgeIndex] = new();
+                edgeToVertexIndex[edgeIndex].Add(vertexId);
+
+                triangle[j] = vertexId;
+            }
+            meshData.AddTriangle(triangle);
+        }
+        return new(edgeToVertexIndex);
+    }
+
+    public static CreatedMatchingCubeInfo AddSmoothCubeToMesh(MeshData meshData, float[] surfaceLevels, float surfaceBorder, Vector3 offset, float size)
     {
         return AddSmoothCubeToMesh(meshData, surfaceLevels, surfaceBorder, offset, size, new());
     }
@@ -411,7 +473,7 @@ public static class MarchingCube
             {
                 if(_commonEdges.TryGetValue((edgeIndex, neighbor.Key), out int commonEdgeIndex))
                 {
-                    vertexIndex = neighbor.Value.GetVertexIndex(commonEdgeIndex);
+                    vertexIndex = neighbor.Value.GetFirstVertexIndex(commonEdgeIndex);
                     return true;
                 }
             }
@@ -431,9 +493,8 @@ public static class MarchingCube
                 {
                     if(TryGetVertexFromNeighbors(edgeIndex, out vertexId) == false)
                     {
-                        (int a, int b) = _edgePoints[edgeIndex];
-                        Vector3 point = Vector3.Lerp(_vertexOffset[a], _vertexOffset[b], (surfaceBorder - surfaceLevels[a]) / (surfaceLevels[b] - surfaceLevels[a]));
-                        vertexId = meshData.AddVertex(offset + point * size);
+                        Vector3 point = GetEdgePoint(edgeIndex, surfaceLevels, surfaceBorder, offset, size);
+                        vertexId = meshData.AddVertex(point);
                     }
                     edgeToVertexIndex.Add(edgeIndex, vertexId);
                 }

@@ -1,0 +1,77 @@
+
+static const int MaxAnimationCurveKeyFrames = 16;
+
+float4 GetAnimationCurveABCD(float4 f1, float4 f2)
+{
+    float p1x = f1.x;
+    float p1y = f1.y;
+    float tp1 = f1.w;
+    float p2x = f2.x;
+    float p2y = f2.y;
+    float tp2 = f2.z;
+    float p1xp2 = p1x * p1x;
+    float p1xp3 = p1xp2 * p1x;
+    float p2xp2 = p2x * p2x;
+    float p2xp3 = p2xp2 * p2x;
+
+    float divisor = p1xp3 - p2xp3 + (3 * p1x * p2x * (p2x - p1x));
+    float4 abcd;
+    abcd.x = ((tp1 + tp2) * (p1x - p2x) + (p2y - p1y) * 2) / divisor;
+    abcd.y = (2 * (p2xp2 * tp1 - p1xp2 * tp2) - p1xp2 * tp1 + p2xp2 * tp2 + p1x * p2x * (tp2 - tp1) + 3 * (p1x + p2x) * (p1y - p2y)) / divisor;
+    abcd.z = (p1xp3 * tp2 - p2xp3 * tp1 + p1x * p2x * (p1x * (2 * tp1 + tp2) - p2x * (tp1 + 2 * tp2)) + 6 * p1x * p2x * (p2y - p1y)) / divisor;
+    abcd.w = ((p1x * p2xp2 - p1xp2 * p2x) * (p2x * tp1 + p1x * tp2) - p1y * p2xp3 + p1xp3 * p2y + 3 * p1x * p2x * (p2x * p1y - p1x * p2y)) / divisor;
+
+    return abcd;
+}
+
+int FindNeededKeyFrameIndex(float t, float4 keyframes[MaxAnimationCurveKeyFrames], int keysCount)
+{
+    if (keysCount < 2 || t <= keyframes[0].x)
+        return -1;
+    if (t >= keyframes[keysCount - 1].x)
+        return keysCount - 1;
+    for (int i = 1; i < keysCount; i++)
+    {
+        if (t < keyframes[i].x)
+            return i - 1;
+    }
+    return keysCount - 1;
+}
+
+bool IsFinite(float value)
+{
+    return !isnan(value) && !isinf(value);
+}
+bool IsABCDValid(float4 abcd)
+{
+    return IsFinite(abcd.x) && IsFinite(abcd.y) && IsFinite(abcd.z) && IsFinite(abcd.w);
+}
+float EvaluateAnumationCurve(float t, float4 abcd)
+{
+    float tp2 = t * t;
+    float tp3 = tp2 * t;
+
+    return abcd.x * tp3 + abcd.y * tp2 + abcd.z * t + abcd.w;
+}
+float EvaluateAnumationCurve(float t, float4 keyframes[MaxAnimationCurveKeyFrames], int keysCount)
+{
+    int index = FindNeededKeyFrameIndex(t, keyframes, keysCount);
+    if (index == -1)
+        return keyframes[0].y;
+    else if (index == keysCount - 1)
+        return keyframes[keysCount - 1].y;
+
+    float4 f1 = keyframes[index];
+    float4 f2 = keyframes[index + 1];
+
+    float4 abcd = GetAnimationCurveABCD(f1, f2);
+
+    if (IsABCDValid(abcd) == false)
+    {
+        if (abcd.a > 0)
+            return f1.y;
+        else
+            return f2.y;
+    }
+    return EvaluateAnumationCurve(t, abcd);
+}

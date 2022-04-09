@@ -7,10 +7,19 @@ using UnityExtensions;
 [RequireComponent(typeof(UnityThread))]
 public class TestWorld : World, ITest
 {
+    public enum GenerationType
+    {
+        Sequential,
+        Parallel,
+        ComputeShader
+    }
+
     [SerializeField] private MeshSettings _meshSettings;
     [SerializeField] private PerlinNoise3DSettings _noiseSettings;
 
-    [SerializeField] private bool _parallel;
+    [SerializeField] private GenerationType _generationType = GenerationType.ComputeShader;
+    [SerializeField] private ComputeShader _meshGenerationShader;
+    [SerializeField] private ComputeShader _perlinNoiseShader;
     [SerializeField, Min(1)] private int _actionsInOneThreadNoise = 1000;
     [SerializeField, Min(1)] private int _actionsInOneThreadMesh = 1000;
     [SerializeField] private BoundsInt _bounds = new(Vector3Int.zero, Vector3Int.one * 3);
@@ -25,10 +34,14 @@ public class TestWorld : World, ITest
     private ChunkGenerator GetGenerator()
     {
         PerlinNoise3D noise = new(_noiseSettings);
-        if(_parallel)
-            return new ParallelChunkGenerator(_meshSettings, noise, _actionsInOneThreadNoise, _actionsInOneThreadMesh);
-        else
-            return new SequentialChunkGenerator(_meshSettings, noise);
+
+        return _generationType switch
+        {
+            GenerationType.Sequential => new SequentialChunkGenerator(_meshSettings, noise),
+            GenerationType.Parallel => new ParallelChunkGenerator(_meshSettings, noise, _actionsInOneThreadNoise, _actionsInOneThreadMesh),
+            GenerationType.ComputeShader => new ComputeShaderChunkGenerator(_meshSettings, _meshGenerationShader, new PerlinNoise3DComputeShader(_noiseSettings, _perlinNoiseShader)),
+            _ => throw new System.ArgumentException(nameof(_generationType), "Unknown generation type")
+        };
     }
 
     public void Test()

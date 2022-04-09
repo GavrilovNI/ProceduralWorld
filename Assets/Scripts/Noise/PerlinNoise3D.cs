@@ -8,7 +8,7 @@ using UnityExtensions;
 [Serializable]
 public class PerlinNoise3D
 {
-    private PerlinNoise3DSettings _settings;
+    private readonly PerlinNoise3DSettings _settings;
 
     public PerlinNoise3D(PerlinNoise3DSettings settings)
     {

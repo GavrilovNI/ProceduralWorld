@@ -2,7 +2,7 @@
 using UnityEditor;
 
 [CustomEditor(typeof(TestWorld))]
-public class TestWorldEditor : GeneratorEditor
+public class TestWorldEditor : TestEditor
 {
     private bool _showMeshSettings = false;
     private bool _showNoiseSettings = false;

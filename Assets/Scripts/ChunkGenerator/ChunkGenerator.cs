@@ -8,12 +8,10 @@ using UnityExtensions;
 public abstract class ChunkGenerator
 {
     protected MeshSettings MeshSettings;
-    protected PerlinNoise3D Noise;
 
-    public ChunkGenerator(MeshSettings meshSettings, PerlinNoise3D noise)
+    public ChunkGenerator(MeshSettings meshSettings)
     {
         MeshSettings = meshSettings;
-        Noise = noise;
     }
 
     public Vector3 GetRealChunkPosition(Vector3Int chunkIndex) =>

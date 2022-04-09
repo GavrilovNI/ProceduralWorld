@@ -8,6 +8,24 @@ public class MeshData : IMeshBuilder
     private readonly List<Vector3> _vertices = new();
     private readonly List<int> _triangleIndexes = new();
     
+    public MeshData()
+    {
+
+    }
+    private MeshData(List<Vector3> vertices, List<int> triangleIndexes)
+    {
+        _vertices = vertices;
+        _triangleIndexes = triangleIndexes;
+    }
+
+    public static MeshData FromTriangles(List<Vector3> triangles)
+    {
+        List<int> triangleIndexes = new();
+        for(int i = 0; i < triangles.Count; i++)
+            triangleIndexes.Add(i);
+        return new MeshData(triangles, triangleIndexes);
+    }
+
     public int AddVertex(Vector3 point)
     {
         int index;

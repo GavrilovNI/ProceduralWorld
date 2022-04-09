@@ -41,7 +41,7 @@ public class World : MonoBehaviour
         Chunk chunk = GameObject.Instantiate(_chunkPrefab);
         chunk.transform.SetParent(transform);
         chunk.transform.localPosition = ChunkGenerator.GetRealChunkPosition(index);
-        chunk.name = $"{nameof(Chunk)} {index}";
+        chunk.name = $"{nameof(Chunk)} {index} {System.DateTime.Now:mm:ss.FFFF}";
         chunk.Initialize(index);
         _chunks[index] = chunk;
         return chunk;
