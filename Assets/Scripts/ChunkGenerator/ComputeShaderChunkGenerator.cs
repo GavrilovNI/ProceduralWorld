@@ -47,7 +47,7 @@ public class ComputeShaderChunkGenerator : ChunkGenerator
 
         _shader.SetBuffer(kernelIndex, "Triangles", trianglesBuffer);
 
-        Vector3Int groupSizes = new(8, 8, 8);// _shader.GetKernelThreadGroupSizes(kernelIndex);
+        Vector3Int groupSizes = _shader.GetKernelThreadGroupSizes(kernelIndex);
         var workSize = groupSizes.ChangeAxises(v => Mathf.CeilToInt(chunkSize / (float)v));
 
         _shader.Dispatch(kernelIndex, workSize);

@@ -15,9 +15,6 @@ int SurfaceLevelByHeightSize;
 
 RWStructuredBuffer<float> SurfaceLevels;
 
-
-
-
 float SmoothDistance(float distance)
 {
     return distance * distance * distance * (distance * (distance * 6 - 15) + 10);
@@ -43,13 +40,19 @@ float TransformSurfaceLevel(float3 pos, float generatedSurfaceLevel)
 {
     float height = pos.y;
     if (height <= MinHeight)
+    {
         return EvaluateAnumationCurve(0, SurfaceLevelByHeight, SurfaceLevelByHeightSize);
-    if (height > MaxHeight)
+    }
+    else if (height > MaxHeight)
+    {
         return EvaluateAnumationCurve(1, SurfaceLevelByHeight, SurfaceLevelByHeightSize);
-
-    float t = (height - MinHeight) / (MaxHeight - MinHeight);
-    t = Clamp(t, 0, 1);
-    return generatedSurfaceLevel * EvaluateAnumationCurve(t, SurfaceLevelByHeight, SurfaceLevelByHeightSize);
+    }
+    else
+    {
+        float t = (height - MinHeight) / (MaxHeight - MinHeight);
+        t = Clamp(t, 0, 1);
+        return generatedSurfaceLevel * EvaluateAnumationCurve(t, SurfaceLevelByHeight, SurfaceLevelByHeightSize);
+    }
 }
 
 float Get(float3 pos)

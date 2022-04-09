@@ -33,7 +33,7 @@ public class PerlinNoise3DComputeShader
         ComputeBuffer result = new(resultSize, sizeof(float));
         _shader.SetBuffer(kernelIndex, "SurfaceLevels", result);
 
-        Vector3Int groupSizes = new(8, 8, 8);// _shader.GetKernelThreadGroupSizes(kernelIndex);
+        Vector3Int groupSizes = _shader.GetKernelThreadGroupSizes(kernelIndex);
         var workSize = groupSizes.ChangeAxises((v, i) => Mathf.CeilToInt(size[i] / (float)v));
 
         _shader.Dispatch(kernelIndex, workSize);
